@@ -43,9 +43,9 @@ def predict(X_frame, face_list, knn_clf=None, model_path=None, distance_threshol
                 if item[idx] != 0:
                     # print(face_list[idx]+" : "+str(item[idx]))
                     acc_list.append((face_list[idx],item[idx]))
-        # print(acc_list)
+        print(acc_list)
     # Predict classes and remove classifications that aren't within the threshold
-    return [(pred, loc) if rec else ("unknown", loc) for pred, loc, rec in zip(knn_clf.predict(faces_encodings), X_face_locations, are_matches)]
+    return [(pred, loc) if rec else ("unknown", loc) for pred, loc, rec in zip(knn_clf.predict(faces_encodings), X_face_locations, are_matches)] 
 
 
 def show_prediction_labels_on_image(frame, predictions):
