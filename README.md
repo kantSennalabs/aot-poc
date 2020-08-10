@@ -5,6 +5,12 @@
 ```
 3.7.xx
 ```
+* create python env
+```
+python3 -m venv aot
+source aot/bin/activate
+pip install -r requirement.txt
+```
 
 * Index
 ```
