@@ -37,7 +37,7 @@ def train(train_dir, model_save_path=None, n_neighbors=None, knn_algo='ball_tree
                     print("Image {} not suitable for training: {}".format(img_path, "Didn't find a face" if len(face_bounding_boxes) < 1 else "Found more than one face"))
             else:
                 # Add face encoding for current image to the training set
-                X.append(face_recognition.face_encodings(image, known_face_locations=face_bounding_boxes)[0])
+                X.append(face_recognition.face_encodings(image,known_face_locations=face_bounding_boxes)[0])
                 # print(X)
                 y.append(class_dir)
                 i += 1

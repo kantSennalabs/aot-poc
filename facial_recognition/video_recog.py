@@ -32,20 +32,20 @@ def predict(X_frame, face_list, knn_clf=None, model_path=None, distance_threshol
     # Find encodings for faces in the test image
     faces_encodings = face_recognition.face_encodings(X_frame, known_face_locations=X_face_locations)
     # Use the KNN model to find the best matches for the test face
-    # closest_distances = knn_clf.kneighbors(faces_encodings, n_neighbors=1)
-    # print("Distance : ",str(min(closest_distances[0])[0]))
-    # are_matches = [closest_distances[0][i][0] <= distance_threshold for i in range(len(X_face_locations))]
-    # props = knn_clf.predict_proba(faces_encodings)
-    # if are_matches:
-    #     for item in props:
-    #         item = item.tolist()
-    #         for idx in range(len(item)):
-    #             if item[idx] != 0:
-    #                 # print(face_list[idx]+" : "+str(item[idx]))
-    #                 acc_list.append((face_list[idx],item[idx]))
-    #     # print(acc_list)
+    closest_distances = knn_clf.kneighbors(faces_encodings, n_neighbors=1)
+    print("Distance : ",str(min(closest_distances[0])[0]))
+    are_matches = [closest_distances[0][i][0] <= distance_threshold for i in range(len(X_face_locations))]
+    props = knn_clf.predict_proba(faces_encodings)
+    if are_matches:
+        for item in props:
+            item = item.tolist()
+            for idx in range(len(item)):
+                if item[idx] != 0:
+                    # print(face_list[idx]+" : "+str(item[idx]))
+                    acc_list.append((face_list[idx],item[idx]))
+        # print(acc_list)
     # Predict classes and remove classifications that aren't within the threshold
-    return [(pred, loc)  for pred, loc in zip(knn_clf.predict(faces_encodings), X_face_locations)]
+    return [(pred, loc) if rec else ("unknown", loc) for pred, loc, rec in zip(knn_clf.predict(faces_encodings), X_face_locations, are_matches)]
 
 
 def show_prediction_labels_on_image(frame, predictions):
