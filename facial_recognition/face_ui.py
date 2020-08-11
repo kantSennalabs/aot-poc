@@ -18,8 +18,10 @@ gui.geometry("1350x800")
 app = Frame(gui, bg="white")
 app.grid()
 # Create a label in the frame
-label = Label( app, text = "Sennalabs")
+label = Label( app, text = "-----Sennalabs-----")
 label.grid(row=0, column=0)
+
+
 lmain = Label(app)
 lmain.grid(row=1, column=0, padx= 95)
 input_L = Label(app, text="Enter name").grid(row=2, sticky=W, padx= 630, pady= 10) # label for name
@@ -32,7 +34,7 @@ time.sleep(2)
 # function for video streaming
 def video_stream():
     _, frame = cap.read()
-    frame = cv2.resize(frame, (1152 , 648))
+    frame = cv2.resize(frame, (1152 , 600))
     cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
     gray = cv2.cvtColor(cv2image, cv2.COLOR_BGR2GRAY)
     # detect face
@@ -56,24 +58,35 @@ def video_stream():
 
 #snapshot function
 def takeSnapshot():
-    for i in range(1,11):
-        # grab the current timestamp and use it to construct the
-        # output path
-        _, frame = cap.read()
-        outputPath = f'train/{name.get()}'
-        ts = datetime.datetime.now()
-        filename = "{}.jpg".format(ts.strftime(f'{name.get()}'))
-        filename = f'{name.get()}{i}.jpg'
-        #p = os.path.sep.join((outputPath, filename))
-            # save the file
-        if not os.path.exists(outputPath):
-            os.makedirs(outputPath)
+    if name.get() != '':
+        for i in range(1,100):
+            # grab the current timestamp and use it to construct the
+            # output path
+            _, frame = cap.read()
+            outputPath = f'train/{name.get()}'
+            ts = datetime.datetime.now()
+            filename = "{}.jpg".format(ts.strftime(f'{name.get()}'))
+            filename = f'{name.get()}{i}.jpg'
+            #p = os.path.sep.join((outputPath, filename))
+                # save the file
+            
+            if not os.path.exists(outputPath):
+                os.makedirs(outputPath)
+            if (i%10 == 0):
+                cv2.imwrite(f'./{outputPath}/{filename}', frame.copy())
+                for j in range (1,11):
+                    label_i = Label( app, text = "Successfully captured")
+                    label_i.grid(row=5, column=0)
+                print("[INFO] saved {}".format(filename))
+    else:
+        label_i = Label( app, text = "Please enter name!!")
+        label_i.grid(row=5, column=0)
 
-        cv2.imwrite(f'./{outputPath}/{filename}', frame.copy())
-        print("[INFO] saved {}".format(filename))
 
 btn = Button(app, text="Snapshot!", command=takeSnapshot)
 btn.grid(row=4, column=0, pady= 10)
+
+
 video_stream()
 gui.mainloop()
 
