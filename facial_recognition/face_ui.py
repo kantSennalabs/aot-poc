@@ -4,7 +4,8 @@ from PIL import ImageTk
 from tkinter import filedialog
 import imutils
 import cv2
-
+import datetime
+import os
 
 gui = Tk(className='Python Examples - Window Size')
 # set window size
@@ -36,6 +37,21 @@ def video_stream():
     lmain.configure(image=imgtk)
     lmain.after(1, video_stream) 
 
+#snapshot function
+def takeSnapshot():
+		# grab the current timestamp and use it to construct the
+		# output path
+        _, frame = cap.read()
+        outputPath = '/'
+        ts = datetime.datetime.now()
+        filename = "{}.jpg".format(ts.strftime("%Y-%m-%d_%H-%M-%S"))
+        p = os.path.sep.join((outputPath, filename))
+        # save the file
+        cv2.imwrite(f'./{filename}', frame.copy())
+        print("[INFO] saved {}".format(filename))
+
+btn = Button(app, text="Snapshot!", command=takeSnapshot)
+btn.grid(row=2, column=0)
 video_stream()
 gui.mainloop()
 
