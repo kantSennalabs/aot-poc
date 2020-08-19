@@ -1,20 +1,57 @@
 import cv2
-import math
 from sklearn import neighbors
 import os
 import os.path
+from multiprocessing import Pool
 import pickle
 from PIL import Image, ImageDraw
 import face_recognition
 from face_recognition.face_recognition_cli import image_files_in_folder
 import numpy as np
-
-
+from threading import Thread
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'JPG'}
+
+#theading stream
+class CameraVideoStream:
+    """
+    """
+    def __init__(self, src=0):
+        # initialize the video camera stream and read the first frame
+        # from the stream
+        self.stream = cv2.VideoCapture(src)
+        (self.grabbed, self.frame) = self.stream.read()
+        # initialize the variable used to indicate if the thread should
+        # be stopped
+        self.stopped = False
+    def start(self):
+        """
+        """
+        # start the thread to read frames from the video stream
+        Thread(target=self.update, args=()).start()
+        return self
+    def update(self):
+        """
+        """
+        # keep looping infinitely until the thread is stopped
+        while True:
+            # if the thread indicator variable is set, stop the thread
+            if self.stopped:
+                return
+            # otherwise, read the next frame from the stream
+            (self.grabbed, self.frame) = self.stream.read()
+    def read(self):
+        """
+        """
+        # return the frame most recently read
+        return self.frame
+    def stop(self):
+        """
+        """
+        # indicate that the thread should be stopped
+        self.stopped = True
 
 def predict(X_frame, face_list, knn_clf=None, model_path=None, distance_threshold=0.45):
     print("================================================")
-    acc_list = []
     if knn_clf is None and model_path is None:
         raise Exception("Must supply knn classifier either though knn_clf or model_path")
 
@@ -23,39 +60,25 @@ def predict(X_frame, face_list, knn_clf=None, model_path=None, distance_threshol
         with open(model_path, 'rb') as f:
             knn_clf = pickle.load(f)
 
+    
     X_face_locations = face_recognition.face_locations(X_frame)
 
-    # If no faces are found in the image, return an empty result.
+#    # If no faces are found in the image, return an empty result.
     if len(X_face_locations) == 0:
         return []
-
+    
     # Find encodings for faces in the test image
     faces_encodings = face_recognition.face_encodings(X_frame, known_face_locations=X_face_locations)
     # Use the KNN model to find the best matches for the test face
     closest_distances = knn_clf.kneighbors(faces_encodings, n_neighbors=1)
     print("Distance : ",str(min(closest_distances[0])[0]))
     are_matches = [closest_distances[0][i][0] <= distance_threshold for i in range(len(X_face_locations))]
-    props = knn_clf.predict_proba(faces_encodings)
-    if are_matches:
-        for item in props:
-            item = item.tolist()
-            for idx in range(len(item)):
-                if item[idx] != 0:
-                    # print(face_list[idx]+" : "+str(item[idx]))
-                    acc_list.append((face_list[idx],item[idx]))
-        print(acc_list)
-    # Predict classes and remove classifications that aren't within the threshold
     return [(pred, loc) if rec else ("unknown", loc) for pred, loc, rec in zip(knn_clf.predict(faces_encodings), X_face_locations, are_matches)] 
+    
 
-
-def show_prediction_labels_on_image(frame, predictions):
-    """
-    Shows the face recognition results visually.
-    :param frame: frame to show the predictions on
-    :param predictions: results of the predict function
-    :return opencv suited image to be fitting with cv2.imshow fucntion:
-    """
-    pil_image = Image.fromarray(frame)
+def show_prediction_labels_on_image(img, predictions):
+  
+    pil_image = Image.fromarray(img)
     draw = ImageDraw.Draw(pil_image)
 
     for name, (top, right, bottom, left) in predictions:
@@ -86,14 +109,12 @@ def show_prediction_labels_on_image(frame, predictions):
 
 if __name__ == "__main__":
 
-    process_this_frame = 9
+    process_this_frame = 19
     face_list = []
     print('Setting cameras up...')
     # multiple cameras can be used with the format url = 'http://username:password@camera_ip:port'
     url = 1
-    # cap = cv2.VideoCapture("rtsp://admin:HuaWei123@192.168.1.75:554/LiveMedia/ch1/Media2")
-    cap = cv2.VideoCapture(0)
-    # cap = cv2.VideoCapture("rtsp://admin:senna1234@192.168.1.33:554")
+    cap = CameraVideoStream(src="rtsp://admin:Sennalabs_@192.168.0.125/Streaming/Channels/101").start()
     
     for class_dir in os.listdir("train/"):
         if not os.path.isdir(os.path.join("train/", class_dir)):
@@ -101,21 +122,21 @@ if __name__ == "__main__":
         face_list.append(class_dir)
         face_list.sort() 
 
-    while 1 > 0:
-        ret, frame = cap.read()
-        # frame = cv2.flip(frame, -1)
-        # print(ret,frame)
-        if ret:
+    while True:
+        
+        frame = cap.read()
+        if cap.grabbed:
             # Different resizing options can be chosen based on desired program runtime.
             # Image resizing for more stable streaming
-            img = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+            img = cv2.resize(frame, (0,0), fx= 0.5, fy=0.5)
             process_this_frame = process_this_frame + 1
-            if process_this_frame % 10 == 0:
+            if process_this_frame % 20 == 0:
                 predictions = predict(img, face_list, model_path="trained_knn_model.clf")
                 print(predictions)
+            
             frame = show_prediction_labels_on_image(frame, predictions)
             cv2.imshow('camera', frame)
             if ord('q') == cv2.waitKey(10):
-                cap.release()
+                cap.stop()
                 cv2.destroyAllWindows()
                 exit(0)

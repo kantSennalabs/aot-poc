@@ -27,7 +27,7 @@ name = Entry(app) # name input box
 name.grid(row=3)
 
 # Capture from camera
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture("rtsp://admin:Sennalabs_@192.168.0.125/Streaming/Channels/101")
 time.sleep(2)
 # function for video streaming
 def video_stream():

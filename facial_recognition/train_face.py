@@ -9,7 +9,6 @@ import face_recognition
 from face_recognition.face_recognition_cli import image_files_in_folder
 import numpy as np
 from sklearn.metrics import accuracy_score
-from imblearn.over_sampling import SMOTE
 from sklearn.neural_network import MLPClassifier
 
 
@@ -52,16 +51,15 @@ def train(train_dir, model_save_path=None, n_neighbors=None, knn_algo='ball_tree
     # sm = SMOTE(random_state=42)
     # X_res, y_res = sm.fit_resample(X, y)
     knn_clf = neighbors.KNeighborsClassifier(n_neighbors=n_neighbors, algorithm=knn_algo, weights='distance')
-    mlp_clf = MLPClassifier(random_state=1, max_iter=300)
 
-    mlp_clf.fit(X, y)
+    knn_clf.fit(X, y)
 
     # Save the trained KNN classifier
     if model_save_path is not None:
         with open(model_save_path, 'wb') as f:
-            pickle.dump(mlp_clf, f)
+            pickle.dump(knn_clf, f)
 
-    return mlp_clf
+    return knn_clf
 
 
 def test(test_dir, model):
