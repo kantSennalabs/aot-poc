@@ -1,4 +1,5 @@
 import cv2
+import sys
 import math
 from sklearn import neighbors
 import os
@@ -109,7 +110,7 @@ def test(test_dir, model):
 
 if __name__ == "__main__":
     print("Training KNN classifier...")
-    classifier = train("train/", model_save_path="trained_knn_model.clf", verbose=True)
+    classifier = train("train/", model_save_path=f"model/trained_knn_model_v{sys.argv[1]}.clf", verbose=True)
     print("Training complete!")
     print("Testing ....")
     acc = test("test/",classifier)

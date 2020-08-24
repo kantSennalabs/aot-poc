@@ -2,13 +2,18 @@ import cv2
 from sklearn import neighbors
 import os
 import os.path
-from multiprocessing import Pool
+import sys
 import pickle
 from PIL import Image, ImageDraw
 import face_recognition
 from face_recognition.face_recognition_cli import image_files_in_folder
 import numpy as np
 from threading import Thread
+import datetime
+from notification import checkin_teamhero
+from rq import Queue
+from redis import Redis
+
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'JPG'}
 
 #theading stream
@@ -50,7 +55,7 @@ class CameraVideoStream:
         # indicate that the thread should be stopped
         self.stopped = True
 
-def predict(X_frame, face_list, knn_clf=None, model_path=None, distance_threshold=0.45):
+def predict(X_frame, face_list, knn_clf=None, model_path=None, distance_threshold=0.4):
     print("================================================")
     if knn_clf is None and model_path is None:
         raise Exception("Must supply knn classifier either though knn_clf or model_path")
@@ -108,13 +113,15 @@ def show_prediction_labels_on_image(img, predictions):
 
 
 if __name__ == "__main__":
-
+    predicted_name = None
+    redis_conn = Redis()
+    q = Queue(connection=redis_conn)
     process_this_frame = 19
     face_list = []
     print('Setting cameras up...')
     # multiple cameras can be used with the format url = 'http://username:password@camera_ip:port'
     url = 1
-    cap = CameraVideoStream(src="rtsp://admin:Sennalabs_@192.168.0.125/Streaming/Channels/101").start()
+    cap = CameraVideoStream(src="rtsp://admin:Sennalabs_@192.168.0.62/Streaming/Channels/101").start()
     
     for class_dir in os.listdir("train/"):
         if not os.path.isdir(os.path.join("train/", class_dir)):
@@ -131,11 +138,27 @@ if __name__ == "__main__":
             img = cv2.resize(frame, (0,0), fx= 0.5, fy=0.5)
             process_this_frame = process_this_frame + 1
             if process_this_frame % 20 == 0:
-                predictions = predict(img, face_list, model_path="trained_knn_model.clf")
+                predictions = predict(img, face_list, model_path= f"model/trained_knn_model_v{sys.argv[1]}.clf")
                 print(predictions)
-            
+                if predictions:
+                    predicted_name = predictions[0][0]
+                    path = f"cap_img/{predictions[0][0]}"
+                    os.makedirs(path, exist_ok=True)
+                    img_path = os.path.join(path, f"{predictions[0][0]}-{datetime.datetime.now().strftime('%d-%m-%Y-%H-%M-%S')}.jpg")
+                    try:
+                        cv2.imwrite(img_path , frame)
+                    except:
+                        pass
+                    job = q.enqueue(checkin_teamhero, predictions[0][0], img_path)
+                    try:
+                        cv2.imshow('Found',frame[predictions[0][1][0]*2 - 50:predictions[0][1][2]*2 + 100,predictions[0][1][3]*2 - 100:predictions[0][1][1]*2 + 100])
+                    except:
+                        pass
             frame = show_prediction_labels_on_image(frame, predictions)
+            cv2.rectangle(frame, (540, 30),(850, 80), (0,0,0), -1)
+            cv2.putText(frame, f'{predicted_name} CHECKED IN', (550, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3, cv2.LINE_AA) if predicted_name != "unknown" else None
             cv2.imshow('camera', frame)
+        
             if ord('q') == cv2.waitKey(10):
                 cap.stop()
                 cv2.destroyAllWindows()
