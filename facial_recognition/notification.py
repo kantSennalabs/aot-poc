@@ -20,7 +20,7 @@ def checkin_teamhero(user_name=None, file_name=None):
         return 0 
 
     user = transform_user(user)
-    print(user)
+    print(user_name)
     
     checkin_select_query = f"select * from check_ins where date = current_date and user_id = {user['id']}"
     cur.execute(checkin_select_query)
@@ -33,22 +33,20 @@ def checkin_teamhero(user_name=None, file_name=None):
 
     if len(user_checkin) == 0:
         checkin_insert_query = f"""insert into check_ins(date, created_at, updated_at, user_id, time, details, on_time, user_check_in_time,workplace_id,user_time_zone,company_id) 
-                                   values(current_date, now(), now(), {user['id']},'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', '{detail}', '{on_time}', '{user["check_in_time"]}', 1, 'Bangkok', '{user["company_id"]}')"""
+                                   values(current_date, now(), now(), {user['id']},'{(datetime.datetime.now() - datetime.timedelta(hours=7)).strftime("%Y-%m-%d %H:%M:%S")}', '{detail}', '{on_time}', '{user["check_in_time"]}', 2, 'Bangkok', '{user["company_id"]}')"""
         cur.execute(checkin_insert_query)
         conn.commit()
-        print(conn.commit())
         my_file = {
             'file' : (f'{file_name}', open(f'{file_name}', 'rb'), 'JPEG')
         }
 
         payload={
             "filename":f"{file_name}", 
-            "token":"xoxb-128417594390-1187449933264-7tdwf01MNpS0ISbSYZRH0AF3", 
+            "token":"xoxb-128417594390-1333209280993-rM1n268Celc4tKxuB62i24NC", 
             "channels":"CQGGC3X6Z", 
             "initial_comment":f"{user_name.upper()} has checked in at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {'ON TIME' if on_time == 'True' else 'LATE'}" 
         }
-        r = requests.post("https://slack.com/api/files.upload", params=payload, files=my_file)
-        print(r)
+        print(requests.post("https://slack.com/api/files.upload", params=payload, files=my_file).text)
         return 1
     else:
         return 0

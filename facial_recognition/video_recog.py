@@ -55,8 +55,8 @@ class CameraVideoStream:
         # indicate that the thread should be stopped
         self.stopped = True
 
-def predict(X_frame, face_list, knn_clf=None, model_path=None, distance_threshold=0.4):
-    print("================================================")
+def predict(X_frame, face_list, knn_clf=None, model_path=None, distance_threshold=0.38):
+    
     if knn_clf is None and model_path is None:
         raise Exception("Must supply knn classifier either though knn_clf or model_path")
 
@@ -139,8 +139,9 @@ if __name__ == "__main__":
             process_this_frame = process_this_frame + 1
             if process_this_frame % 20 == 0:
                 predictions = predict(img, face_list, model_path= f"model/trained_knn_model_v{sys.argv[1]}.clf")
-                print(predictions)
                 if predictions:
+                    print("================================================")
+                    print(predictions)
                     predicted_name = predictions[0][0]
                     path = f"cap_img/{predictions[0][0]}"
                     os.makedirs(path, exist_ok=True)
@@ -149,14 +150,16 @@ if __name__ == "__main__":
                         cv2.imwrite(img_path , frame)
                     except:
                         pass
-                    job = q.enqueue(checkin_teamhero, predictions[0][0], img_path)
-                    try:
-                        cv2.imshow('Found',frame[predictions[0][1][0]*2 - 50:predictions[0][1][2]*2 + 100,predictions[0][1][3]*2 - 100:predictions[0][1][1]*2 + 100])
-                    except:
-                        pass
+                    if predicted_name != "unknown":
+                        job = q.enqueue(checkin_teamhero, predictions[0][0], img_path) 
+                        try:
+                            cv2.imshow('Found',frame[predictions[0][1][0]*2 - 50:predictions[0][1][2]*2 + 100,predictions[0][1][3]*2 - 100:predictions[0][1][1]*2 + 100])
+                        except:
+                            pass
             frame = show_prediction_labels_on_image(frame, predictions)
             cv2.rectangle(frame, (540, 30),(850, 80), (0,0,0), -1)
-            cv2.putText(frame, f'{predicted_name} CHECKED IN', (550, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3, cv2.LINE_AA) if predicted_name != "unknown" else None
+            if predicted_name != "unknown":
+                cv2.putText(frame, f'{predicted_name} CHECKED IN', (550, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3, cv2.LINE_AA)
             cv2.imshow('camera', frame)
         
             if ord('q') == cv2.waitKey(10):
