@@ -55,15 +55,15 @@ class CameraVideoStream:
         # indicate that the thread should be stopped
         self.stopped = True
 
-def predict(X_frame, face_list, knn_clf=None, model_path=None, distance_threshold=0.38):
+def predict(X_frame, face_list, knn_clf, distance_threshold=0.4):
     
-    if knn_clf is None and model_path is None:
-        raise Exception("Must supply knn classifier either though knn_clf or model_path")
-
-    # Load a trained KNN model (if one was passed in)
-    if knn_clf is None:
-        with open(model_path, 'rb') as f:
-            knn_clf = pickle.load(f)
+#    if knn_clf is None and model_path is None:
+#        raise Exception("Must supply knn classifier either though knn_clf or model_path")
+#
+#    # Load a trained KNN model (if one was passed in)
+#    if knn_clf is None:
+#        with open(model_path, 'rb') as f:
+#            knn_clf = pickle.load(f)
 
     
     X_face_locations = face_recognition.face_locations(X_frame)
@@ -121,6 +121,9 @@ if __name__ == "__main__":
     print('Setting cameras up...')
     # multiple cameras can be used with the format url = 'http://username:password@camera_ip:port'
     url = 1
+    with open(f"model/trained_knn_model_v{sys.argv[1]}.clf", 'rb') as f:
+        knn_clf = pickle.load(f)
+            
     cap = CameraVideoStream(src="rtsp://admin:Sennalabs_@192.168.0.62/Streaming/Channels/101").start()
     
     for class_dir in os.listdir("train/"):
@@ -138,7 +141,7 @@ if __name__ == "__main__":
             img = cv2.resize(frame, (0,0), fx= 0.5, fy=0.5)
             process_this_frame = process_this_frame + 1
             if process_this_frame % 20 == 0:
-                predictions = predict(img, face_list, model_path= f"model/trained_knn_model_v{sys.argv[1]}.clf")
+                predictions = predict(img, face_list, knn_clf=knn_clf )
                 if predictions:
                     print("================================================")
                     print(predictions)
