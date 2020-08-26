@@ -4,7 +4,9 @@ import os
 import os.path
 import sys
 import pickle
-from PIL import Image, ImageDraw
+import numpy as np
+from keras.models import load_model
+from PIL import Image, ImageDraw, ImageFont
 import face_recognition
 from face_recognition.face_recognition_cli import image_files_in_folder
 import numpy as np
@@ -13,8 +15,15 @@ import datetime
 from notification import checkin_teamhero
 from rq import Queue
 from redis import Redis
-
+import time
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'JPG'}
+emotion_model = load_model('./model/emotion_recognition.h5')
+emotions = {0:'Angry',1:'Fear',2:'Happy',3:'Sad',4:'Surprised',5:'Neutral'}
+
+emoji = []
+for index in range(6):
+    emotion = emotions[index]
+    emoji.append(cv2.imread('emojis/' + emotion + '.png', -1))
 
 #theading stream
 class CameraVideoStream:
@@ -55,8 +64,16 @@ class CameraVideoStream:
         # indicate that the thread should be stopped
         self.stopped = True
 
+# function to return key for any value 
+def get_key(val, my_dict): 
+    for key, value in my_dict.items(): 
+        if val == value: 
+            return key 
+  
+    return "key doesn't exist"
+
 def predict(X_frame, face_list, knn_clf=None, model_path=None, distance_threshold=0.38):
-    
+    predicted_emotion = []
     if knn_clf is None and model_path is None:
         raise Exception("Must supply knn classifier either though knn_clf or model_path")
 
@@ -78,57 +95,122 @@ def predict(X_frame, face_list, knn_clf=None, model_path=None, distance_threshol
     closest_distances = knn_clf.kneighbors(faces_encodings, n_neighbors=1)
     print("Distance : ",str(min(closest_distances[0])[0]))
     are_matches = [closest_distances[0][i][0] <= distance_threshold for i in range(len(X_face_locations))]
-    return [(pred, loc) if rec else ("unknown", loc) for pred, loc, rec in zip(knn_clf.predict(faces_encodings), X_face_locations, are_matches)] 
+
+    for top, right, bottom, left in X_face_locations:
+        test_image = cv2.resize(cv2.cvtColor(X_frame[top:bottom,left:right], cv2.COLOR_BGR2GRAY), (48, 48))
+        test_image = test_image.reshape([-1,48,48,1])
+        test_image = np.multiply(test_image, 1.0 / 255.0)
+        # Probablities of all classes
+        #Finding class probability takes approx 0.05 seconds
+        start_time = time.time()
+        probab = emotion_model.predict(test_image)[0] * 100
+        #print("--- %s seconds ---" % (time.time() - start_time))
+        # print('prob is ',probab)
+        #Finding label from probabilities
+        #Class having highest probability considered output label
+        label = np.argmax(probab)
+        probab_predicted = int(probab[label])
+        # print('probab_predicted is',probab_predicted)
+        predicted_emotion.append(emotions[label])
+    # print("predicted_emotion = ",format(predicted_emotion))
+    # print("X_face_locations",X_face_locations)
+
+    return [(pred, emotion_list, loc) if rec else ("unknown",emotion_list , loc) for pred, loc, emotion_list, rec  in zip(knn_clf.predict(faces_encodings), X_face_locations, predicted_emotion, are_matches)] 
     
+def emotion_recog(face):
+
+    test_image = cv2.resize(face, (48, 48))
+    test_image = test_image.reshape([-1,48,48,1])
+    test_image = np.multiply(test_image, 1.0 / 255.0)
+    # Probablities of all classes
+    #Finding class probability takes approx 0.05 seconds
+    start_time = time.time()
+    probab = emotion_model.predict(test_image)[0] * 100
+    #print("--- %s seconds ---" % (time.time() - start_time))
+    # print('prob is ',probab)
+    #Finding label from probabilities
+    #Class having highest probability considered output label
+    label = np.argmax(probab)
+    probab_predicted = int(probab[label])
+    # print('probab_predicted is',probab_predicted)
+    predicted_emotion = emotions[label]
+    return predicted_emotion, label
 
 def show_prediction_labels_on_image(img, predictions):
   
     pil_image = Image.fromarray(img)
     draw = ImageDraw.Draw(pil_image)
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    #Upload images of emojis from emojis folder
 
-    for name, (top, right, bottom, left) in predictions:
+    for name, emotion, (top, right, bottom, left) in predictions:
         # enlarge the predictions for the full sized image.
         top *= 2
         right *= 2
         bottom *= 2
         left *= 2
         # Draw a box around the face using the Pillow module
-        draw.rectangle(((left, top), (right, bottom)), outline=(0, 0, 255))
+        draw.rectangle(((left, top), (right, bottom)), outline=(255, 153, 0))
 
         # There's a bug in Pillow where it blows up with non-UTF-8 text
         # when using the default bitmap font
-        name = name.encode("UTF-8")
+        text = str(name) + ' is ' + str(emotion)
+        text_width, text_height = draw.textsize(text)
+        font_path = "./emojis/Sukhumvit.ttf"
+        font = ImageFont.truetype(font_path, 18)
+        draw.rectangle(((left, bottom - text_height - 14), (right, bottom + 14)), fill=(255, 153, 0), outline=(255, 153, 0))
+        
+        draw.text((left + 6, bottom - text_height - 9), text,font = font,  fill=(255, 255, 255, 255))
+    
+
+    opencvimage = np.array(pil_image)
+    for name, emotion, (top, right, bottom, left) in predictions:
+        top *= 2
+        right *= 2
+        bottom *= 2
+        left *= 2
 
         # Draw a label with a name below the face
-        text_width, text_height = draw.textsize(name)
-        draw.rectangle(((left, bottom - text_height - 10), (right, bottom)), fill=(0, 0, 255), outline=(0, 0, 255))
-        draw.text((left + 6, bottom - text_height - 5), name, fill=(255, 255, 255, 255))
-
+        text = str(name) + ' is ' + str(emotion)
+        text_width, text_height = draw.textsize(text)
+        
+        
+        frame_cut_size = opencvimage[bottom - 20:bottom + text_height + 10, left+text_width+60:left+text_width+90].shape
+        print(frame_cut_size)
+        print([(bottom - 20,bottom + text_height + 10), (left+text_width+60,left+text_width+90)])
+        label = get_key(emotion, emotions)
+        emoji_face = emoji[(label)]
+        emoji_face = cv2.resize(emoji_face, (frame_cut_size[1], frame_cut_size[0]))
+        for c in range(0, 3):
+            opencvimage[bottom - 20-5:bottom + text_height + 5, left+text_width+60:left+text_width+90, c] = emoji_face[:, :, c] * \
+                (emoji_face[:, :, 3] / 255.0) + opencvimage[bottom - 20-5:bottom + text_height + 5, left+text_width+60:left+text_width+90, c] * \
+                (1.0 - emoji_face[:, :, 3] / 255.0)
+        
     # Remove the drawing library from memory as per the Pillow docs.
     del draw
     # Save image in open-cv format to be able to show it.
 
-    opencvimage = np.array(pil_image)
     return opencvimage
 
 
 if __name__ == "__main__":
-    predicted_name = None
-    redis_conn = Redis()
-    q = Queue(connection=redis_conn)
+    # predicted_name = None
+    # redis_conn = Redis()
+    # q = Queue(connection=redis_conn)
     process_this_frame = 19
     face_list = []
     print('Setting cameras up...')
     # multiple cameras can be used with the format url = 'http://username:password@camera_ip:port'
+    # src="rtsp://admin:Sennalabs_@192.168.0.62/Streaming/Channels/101"
     url = 1
-    cap = CameraVideoStream(src="rtsp://admin:Sennalabs_@192.168.0.62/Streaming/Channels/101").start()
+    cap = CameraVideoStream(0).start()
     
     for class_dir in os.listdir("train/"):
         if not os.path.isdir(os.path.join("train/", class_dir)):
             continue
         face_list.append(class_dir)
         face_list.sort() 
-
+    predicted_name = None
     while True:
         
         frame = cap.read()
@@ -151,8 +233,10 @@ if __name__ == "__main__":
                     except:
                         pass
                     if predicted_name != "unknown":
-                        job = q.enqueue(checkin_teamhero, predictions[0][0], img_path) 
+                        # job = q.enqueue(checkin_teamhero, predictions[0][0], img_path) 
                         try:
+                            # predicted_emotion = emotion_recog(cv2.cvtColor((frame[predictions[0][1][0]*2:predictions[0][1][2]*2,predictions[0][1][3]*2:predictions[0][1][1]*2]), cv2.COLOR_BGR2GRAY))
+                            # print('*****Predicted emotion = ',predicted_emotion)
                             cv2.imshow('Found',frame[predictions[0][1][0]*2 - 50:predictions[0][1][2]*2 + 100,predictions[0][1][3]*2 - 100:predictions[0][1][1]*2 + 100])
                         except:
                             pass
