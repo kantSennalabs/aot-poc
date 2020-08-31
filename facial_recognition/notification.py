@@ -11,7 +11,7 @@ conn = psycopg2.connect(
     
 cur = conn.cursor()
 
-def checkin_teamhero(user_name=None, file_name=None):
+def checkin_teamhero(user_name=None, file_name=None, emotion = None):
     detail = f"Camera - {user_name}"
     userid_select_query = f"select * from users where nick_name ilike '{user_name}'"
     cur.execute(userid_select_query)
@@ -42,9 +42,9 @@ def checkin_teamhero(user_name=None, file_name=None):
 
         payload={
             "filename":f"{file_name}", 
-            "token":"xoxb-128417594390-1305178157574-6NLlb5eLuUhkIt6Ncb4bGDL1", 
+            "token":"xoxb-128417594390-1305178157574-RHLUyiLCPembD4BJCFI666cW", 
             "channels":"CQGGC3X6Z", 
-            "initial_comment":f"{user_name.upper()} has checked in at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {'ON TIME' if on_time == 'True' else 'LATE'}" 
+            "initial_comment":f"{user_name.upper()} has checked in with {emotion} at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {'ON TIME' if on_time == 'True' else 'LATE'}" 
         }
         print(requests.post("https://slack.com/api/files.upload", params=payload, files=my_file).text)
         return 1
