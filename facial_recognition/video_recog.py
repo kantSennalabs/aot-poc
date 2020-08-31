@@ -124,7 +124,7 @@ if __name__ == "__main__":
     with open(f"model/trained_knn_model_v{sys.argv[1]}.clf", 'rb') as f:
         knn_clf = pickle.load(f)
             
-    cap = CameraVideoStream(src="rtsp://admin:Sennalabs_@192.168.0.62/Streaming/Channels/101").start()
+    cap = CameraVideoStream(src="0").start()
     
     for class_dir in os.listdir("train/"):
         if not os.path.isdir(os.path.join("train/", class_dir)):

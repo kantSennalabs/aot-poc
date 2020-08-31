@@ -82,14 +82,13 @@ def get_embedding(model, face):
     # scale pixel values
     face = face.astype('float32')
     # standardization
+    
     mean, std = face.mean(), face.std()
     face = (face-mean)/std
     # transfer face into one sample (3 dimension to 4 dimension)
     sample = np.expand_dims(face, axis=0)
     # make prediction to get embedding
-    print("sample", sample)
     yhat = model.predict(sample)
-    print("pred", yhat)
     return yhat[0]
 
 
@@ -125,36 +124,37 @@ def predict(X_frame, face_list, knn_clf, distance_threshold=0.4):
             x1, y1 = abs(x1), abs(y1)
             x2, y2 = x1 + width, y1 + height
             cut_face = X_frame[y1:y2,x1:x2]
-            image = Image.fromarray(cut_face)
-            image = Image.resize((160,160))
-            face_array = np.asarray(image)
-            emd = get_embedding(facenet_model, face_array)
-            print("emd",emd)
+            
+            
+            cut_face = cv2.resize(cut_face, (160,160))
+
+            emd = get_embedding(facenet_model, cut_face)
+            # print("emd",emd)
             faces_encodings.append(emd)
             
             
             
         predict_prob = knn_clf.predict_proba(faces_encodings)
-        print(predict_prob)
-        print("Distance : ",str(max(predict_prob[0] * 100)))
-        are_matches = [predict_prob[i] >= 0.35 for i in range(len(X_face_locations))]
-    
-        for top, right, bottom, left in X_face_locations:
-            test_image = cv2.resize(cv2.cvtColor(X_frame[top:bottom,left:right], cv2.COLOR_BGR2GRAY), (48, 48))
-            test_image = test_image.reshape([-1,48,48,1])
-            test_image = np.multiply(test_image, 1.0 / 255.0)
-            # Probablities of all classes
-            #Finding class probability takes approx 0.05 seconds
-            probab = emotion_model.predict(test_image)[0] * 100
-            #Finding label from probabilities
-            #Class having highest probability considered output label
-            label = np.argmax(probab)
-            # print('probab_predicted is',probab_predicted)
-            predicted_emotion.append(emotions[label])
-        # print("predicted_emotion = ",format(predicted_emotion))
-        # print("X_face_locations",X_face_locations)
-    
-        return [(pred, emotion_list, loc) if rec else ("unknown",emotion_list , loc) for pred, loc, emotion_list, rec  in zip(knn_clf.predict(faces_encodings), X_face_locations, predicted_emotion, are_matches)] 
+        # print(predict_prob)
+        # print("Distance : ",str(max(predict_prob[0] * 100)))
+        are_matches = [max(predict_prob[i]) >= 0.35 for i in range(len(X_face_locations))]
+
+        # for top, right, bottom, left in X_face_locations:
+        #     test_image = cv2.resize(cv2.cvtColor(X_frame[top:bottom,left:right], cv2.COLOR_BGR2GRAY), (48, 48))
+        #     test_image = test_image.reshape([-1,48,48,1])
+        #     test_image = np.multiply(test_image, 1.0 / 255.0)
+        #     # Probablities of all classes
+        #     #Finding class probability takes approx 0.05 seconds
+        #     probab = emotion_model.predict(test_image)[0] * 100
+        #     #Finding label from probabilities
+        #     #Class having highest probability considered output label
+        #     label = np.argmax(probab)
+        #     # print('probab_predicted is',probab_predicted)
+        #     predicted_emotion.append(emotions[label])
+        # # print("predicted_emotion = ",format(predicted_emotion))
+        # # print("X_face_locations",X_face_locations)
+
+        return [(pred, loc) if rec else ("unknown", loc) for pred, loc, rec in zip(knn_clf.predict(faces_encodings), X_face_locations, are_matches)] 
     
 
 
@@ -165,18 +165,23 @@ def show_prediction_labels_on_image(img, predictions):
     font = cv2.FONT_HERSHEY_SIMPLEX
     #Upload images of emojis from emojis folder
 
-    for name, emotion, (top, right, bottom, left) in predictions:
+    for name, (x1, y1, width, height) in predictions:
         # enlarge the predictions for the full sized image.
-        top *= 2
-        right *= 2
-        bottom *= 2
-        left *= 2
+        x1, y1 = abs(x1), abs(y1)
+        x2, y2 = x1 + width, y1 + height
+
+        x1 *= 2
+        x2 *= 2
+        y1 *= 2
+        y2 *= 2
+
+        left, top, bottom, right = x1, y1, y2, x2
         # Draw a box around the face using the Pillow module
         draw.rectangle(((left-30, top-50), (right+30, bottom+5)), outline=(255, 153, 0))
 
         # There's a bug in Pillow where it blows up with non-UTF-8 text
         # when using the default bitmap font
-        text = str(name) + ' is ' + str(emotion)
+        text = str(name)
         text_width, text_height = draw.textsize(text)
         
         font = ImageFont.truetype(font_path, 14)
@@ -186,31 +191,31 @@ def show_prediction_labels_on_image(img, predictions):
     
 
     opencvimage = np.array(pil_image)
-    for name, emotion, (top, right, bottom, left) in predictions:
-        top *= 2
-        right *= 2
-        bottom *= 2
-        left *= 2
+#     for name, emotion, (top, right, bottom, left) in predictions:
+#         top *= 2
+#         right *= 2
+#         bottom *= 2
+#         left *= 2
 
-        # Draw a label with a name below the face
-        text = str(name) + ' is ' + str(emotion)
-        text_width, text_height = draw.textsize(text)
+#         # Draw a label with a name below the face
+#         text = str(name) + ' is ' + str(emotion)
+#         text_width, text_height = draw.textsize(text)
         
-        emo_top = bottom - 15
-        emo_bottom = bottom + text_height + 10
-        emo_left = left+text_width + 20
-        emo_right = left+text_width+52
+#         emo_top = bottom - 15
+#         emo_bottom = bottom + text_height + 10
+#         emo_left = left+text_width + 20
+#         emo_right = left+text_width+52
         
-        frame_cut_size = opencvimage[emo_top:emo_bottom, emo_left:emo_right].shape
-#        print(frame_cut_size)
-#        print([(emo_top,emo_bottom), (emo_left,emo_right)])
-        label = get_key(emotion, emotions)
-        emoji_face = emoji[(label)]
-        emoji_face = cv2.resize(emoji_face, (frame_cut_size[1], frame_cut_size[0]))
-        for c in range(0, 3):
-            opencvimage[emo_top-5:emo_bottom - 5, emo_left:emo_right, c] = emoji_face[:, :, c] * \
-                (emoji_face[:, :, 3] / 255.0) + opencvimage[emo_top-5:emo_bottom - 5 , emo_left:emo_right, c] * \
-                (1.0 - emoji_face[:, :, 3] / 255.0)
+#         frame_cut_size = opencvimage[emo_top:emo_bottom, emo_left:emo_right].shape
+# #        print(frame_cut_size)
+# #        print([(emo_top,emo_bottom), (emo_left,emo_right)])
+#         label = get_key(emotion, emotions)
+#         emoji_face = emoji[(label)]
+#         emoji_face = cv2.resize(emoji_face, (frame_cut_size[1], frame_cut_size[0]))
+#         for c in range(0, 3):
+#             opencvimage[emo_top-5:emo_bottom - 5, emo_left:emo_right, c] = emoji_face[:, :, c] * \
+#                 (emoji_face[:, :, 3] / 255.0) + opencvimage[emo_top-5:emo_bottom - 5 , emo_left:emo_right, c] * \
+#                 (1.0 - emoji_face[:, :, 3] / 255.0)
         
     # Remove the drawing library from memory as per the Pillow docs.
     del draw
@@ -231,7 +236,7 @@ if __name__ == "__main__":
     with open(f"model/trained_knn_model_mtcnn_v{sys.argv[1]}.clf", 'rb') as f:
         knn_clf = pickle.load(f)
             
-    cap = CameraVideoStream(src="rtsp://admin:Sennalabs_@192.168.0.63/Streaming/Channels/101").start()
+    cap = CameraVideoStream(src=0).start()
     
     for class_dir in os.listdir("train/"):
         if not os.path.isdir(os.path.join("train/", class_dir)):
