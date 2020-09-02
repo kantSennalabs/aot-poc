@@ -2,6 +2,7 @@
 from mtcnn.mtcnn import MTCNN
 import cv2
 from sklearn import neighbors
+from sklearn.preprocessing import Normalizer
 import os
 import os.path
 import sys
@@ -25,7 +26,7 @@ emotion_model = load_model('model/emotion_recognition.h5')
 emotions = {0:'Angry',1:'Fear',2:'Happy',3:'Sad',4:'Surprised',5:'Neutral'}
 emoji = []
 facenet_model = load_model('model/facenet_keras.h5')
-
+in_encoder = Normalizer()
 
 for index in range(6):
     emotion = emotions[index]
@@ -92,7 +93,7 @@ def get_embedding(model, face):
     return yhat[0]
 
 
-def predict(X_frame, face_list, knn_clf, distance_threshold=0.4):
+def predict(X_frame, face_list, knn_clf, distance_threshold=0.35):
     predicted_emotion = []
     X_face_locations = []
     faces_encodings = []
@@ -107,12 +108,12 @@ def predict(X_frame, face_list, knn_clf, distance_threshold=0.4):
     result = face_detector.detect_faces(pixels)
     X_face_locations = [item['box'] for item in result]
         
-    print("len", len(X_face_locations))
-    print("Pixel: ", X_face_locations)
+#    print("len", len(X_face_locations))
+#    print("Pixel: ", X_face_locations)
 
 #    # If no faces are found in the image, return an empty result.
     if len(X_face_locations) == 0:
-        print("No face detected")
+#        print("No face detected")
         return []
     
     else:
@@ -132,12 +133,13 @@ def predict(X_frame, face_list, knn_clf, distance_threshold=0.4):
             # print("emd",emd)
             faces_encodings.append(emd)
             
-            
-            
+  
+        predict_name = knn_clf.predict(faces_encodings)
         predict_prob = knn_clf.predict_proba(faces_encodings)
+        print(predict_name, [max(prob) for prob in predict_prob])
         # print(predict_prob)
         # print("Distance : ",str(max(predict_prob[0] * 100)))
-        are_matches = [max(predict_prob[i]) >= 0.35 for i in range(len(X_face_locations))]
+        are_matches = [max(predict_prob[i]) >= 0.40 for i in range(len(X_face_locations))]
 
         # for top, right, bottom, left in X_face_locations:
         #     test_image = cv2.resize(cv2.cvtColor(X_frame[top:bottom,left:right], cv2.COLOR_BGR2GRAY), (48, 48))
@@ -154,7 +156,7 @@ def predict(X_frame, face_list, knn_clf, distance_threshold=0.4):
         # # print("predicted_emotion = ",format(predicted_emotion))
         # # print("X_face_locations",X_face_locations)
 
-        return [(pred, loc) if rec else ("unknown", loc) for pred, loc, rec in zip(knn_clf.predict(faces_encodings), X_face_locations, are_matches)] 
+        return [(pred, loc) if rec else ("unknown", loc) for pred, loc, rec in zip(predict_name, X_face_locations, are_matches)] 
     
 
 
@@ -233,10 +235,10 @@ if __name__ == "__main__":
     print('Setting cameras up...')
     # multiple cameras can be used with the format url = 'http://username:password@camera_ip:port'
     url = 1
-    with open(f"model/trained_knn_model_mtcnn_v{sys.argv[1]}.clf", 'rb') as f:
+    with open(f"/home/nvidia-sennalabs/Documents/aot-poc/facial_recognition/model/trained_{sys.argv[1]}_model_mtcnn_v{sys.argv[2]}.clf", 'rb') as f:
         knn_clf = pickle.load(f)
             
-    cap = CameraVideoStream(src=0).start()
+    cap = CameraVideoStream(src='rtsp://admin:Sennalabs_@192.168.0.63/Streaming/Channels/101').start()
     
     for class_dir in os.listdir("train/"):
         if not os.path.isdir(os.path.join("train/", class_dir)):
@@ -257,7 +259,7 @@ if __name__ == "__main__":
                     predictions = predict(img, face_list, knn_clf=knn_clf )
                     if predictions:
                         print("================================================")
-                        print(predictions)
+#                        print(predictions)
                         predicted_name = predictions[0][0]
                         path = f"cap_img/{predictions[0][0]}"
                         os.makedirs(path, exist_ok=True)
@@ -266,7 +268,7 @@ if __name__ == "__main__":
                         cv2.imwrite(img_path , frame)
                         
                         if predicted_name != "unknown":
-                            job = q.enqueue(checkin_teamhero, predictions[0][0], img_path, predictions[0][1] ) 
+                            job = q.enqueue(checkin_teamhero, predictions[0][0], img_path, "-") 
                             cv2.imshow('Found',frame[predictions[0][2][0]*2 - 50:predictions[0][2][2]*2 + 100,predictions[0][2][3]*2 - 100:predictions[0][2][1]*2 + 100])
                 except:
                     pass
