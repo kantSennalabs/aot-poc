@@ -139,4 +139,12 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-aot
+facial_recognition/cap_img
+facial_recognition/emojis
+facial_recognition/model
+facial_recognition/train
+facial_recognition/test
+facial_recognition/train_old
+facial_recognition/old\ pics.zip
+
+
