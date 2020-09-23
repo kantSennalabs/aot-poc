@@ -16,15 +16,15 @@ from rq import Queue
 from redis import Redis
 import time
 
-font_path = "/home/nvidia-sennalabs/Documents/aot-poc/facial_recognition/emojis/Sukhumvit.ttf"
+font_path = "/home/sennlabs-netagrill/Documents/aot-poc/facial_recognition/emojis/Sukhumvit.ttf"
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'JPG'}
-emotion_model = load_model('/home/nvidia-sennalabs/Documents/aot-poc/facial_recognition/model/emotion_recognition.h5')
+emotion_model = load_model('/home/sennlabs-netagrill/Documents/aot-poc/facial_recognition/model/emotion_recognition.h5')
 emotions = {0:'Angry',1:'Fear',2:'Happy',3:'Sad',4:'Surprised',5:'Neutral'}
 
 emoji = []
 for index in range(6):
     emotion = emotions[index]
-    emoji.append(cv2.imread('/home/nvidia-sennalabs/Documents/aot-poc/facial_recognition/emojis/' + emotion + '.png', -1))
+    emoji.append(cv2.imread('/home/sennlabs-netagrill/Documents/aot-poc/facial_recognition/emojis/' + emotion + '.png', -1))
 
 #theading stream
 class CameraVideoStream:
@@ -186,13 +186,13 @@ if __name__ == "__main__":
     print('Setting cameras up...')
     # multiple cameras can be used with the format url = 'http://username:password@camera_ip:port'
     url = 1
-    with open(f"/home/nvidia-sennalabs/Documents/aot-poc/facial_recognition/model/trained_knn_model_v{sys.argv[1]}.clf", 'rb') as f:
+    with open(f"/home/sennlabs-netagrill/Documents/aot-poc/facial_recognition/model/trained_knn_model_v{sys.argv[1]}.clf", 'rb') as f:
         knn_clf = pickle.load(f)
             
-    cap = CameraVideoStream(src="rtsp://admin:Sennalabs_@192.168.0.63/Streaming/Channels/101").start()
+    cap = CameraVideoStream(src=f"rtsp://admin:Sennalabs_@192.168.0.{sys.argv[2]}/Streaming/Channels/101").start()
     
-    for class_dir in os.listdir("/home/nvidia-sennalabs/Documents/aot-poc/facial_recognition/train/"):
-        if not os.path.isdir(os.path.join("/home/nvidia-sennalabs/Documents/aot-poc/facial_recognition/train/", class_dir)):
+    for class_dir in os.listdir("/home/sennlabs-netagrill/Documents/aot-poc/facial_recognition/train/"):
+        if not os.path.isdir(os.path.join("/home/sennlabs-netagrill/Documents/aot-poc/facial_recognition/train/", class_dir)):
             continue
         face_list.append(class_dir)
         face_list.sort() 
@@ -212,7 +212,7 @@ if __name__ == "__main__":
                         print("================================================")
                         print(predictions)
                         predicted_name = predictions[0][0]
-                        path = f"/home/nvidia-sennalabs/Documents/aot-poc/facial_recognition/cap_img/{predictions[0][0]}"
+                        path = f"/home/sennlabs-netagrill/Documents/aot-poc/facial_recognition/cap_img/{predictions[0][0]}"
                         os.makedirs(path, exist_ok=True)
                         img_path = os.path.join(path, f"{predictions[0][0]}-{datetime.datetime.now().strftime('%d-%m-%Y-%H-%M-%S')}.jpg")
                     

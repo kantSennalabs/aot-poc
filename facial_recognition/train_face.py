@@ -28,7 +28,16 @@ def train(train_dir, model_save_path=None, n_neighbors=None, knn_algo='ball_tree
 
         # Loop through each training image for the current person
         for img_path in image_files_in_folder(os.path.join(train_dir, class_dir)):
+            print("processing ",img_path)
             image = face_recognition.load_image_file(img_path)
+            if image.shape[0] >= 4000:
+                image = cv2.resize(image, (0,0), fx= 0.1, fy = 0.1)
+                image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            cv2.imshow("image",image)
+            if ord('q') == cv2.waitKey(10):
+                cap.stop()
+                cv2.destroyAllWindows()
+                exit(0)
             face_bounding_boxes = face_recognition.face_locations(image)
 
             if len(face_bounding_boxes) != 1:
@@ -59,6 +68,7 @@ def train(train_dir, model_save_path=None, n_neighbors=None, knn_algo='ball_tree
     if model_save_path is not None:
         with open(model_save_path, 'wb') as f:
             pickle.dump(knn_clf, f)
+
 
     return knn_clf
 

@@ -42,7 +42,7 @@ def checkin_teamhero(user_name=None, file_name=None, emotion = None):
 
         payload={
             "filename":f"{file_name}", 
-            "token":"xoxb-128417594390-1305178157574-FwC7WxJKeukMUy5f2W2Np5JP", 
+            "token":"xoxb-128417594390-1380529586368-R1r8UaVNsLN6OxpUZYC8EBdr", 
             "channels":"CQGGC3X6Z", 
             "initial_comment":f"{user_name.upper()} has checked in with {emotion} at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {'ON TIME' if on_time == 'True' else 'LATE'}" 
         }
